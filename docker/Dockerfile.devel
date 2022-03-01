@@ -25,7 +25,7 @@
 # backend together with tritonserver, start from here
 # -------------------------------------------------- #
 
-ARG TRITON_VERSION=21.12
+ARG TRITON_VERSION=22.02
 ARG BASE_IMAGE=nvcr.io/nvidia/tritonserver:${TRITON_VERSION}-py3
 FROM ${BASE_IMAGE} as builder
 
@@ -61,12 +61,16 @@ RUN CMAKE_VERSION=3.17 && \
     make -j"$(grep ^processor /proc/cpuinfo | wc -l)" install && \
     rm -rf /cmake-${CMAKE_BUILD}
 
+#ADD nvidia_dali_cuda110-1.11.0.dev0-3822160-py3-none-manylinux2014_x86_64.whl nvidia_dali_cuda110-1.11.0.dev0-3822160-py3-none-manylinux2014_x86_64.whl
+#RUN pip install --force-reinstall nvidia_dali_cuda110-1.11.0.dev0-3822160-py3-none-manylinux2014_x86_64.whl
 RUN pip install --force-reinstall --extra-index-url https://developer.download.nvidia.com/compute/redist/nightly nvidia-dali-nightly-cuda110
 
 WORKDIR /dali
 
 COPY . .
 
+# Do not change the Triton API version when bumping the Triton version used for build.
+# We shall keep TRITON_BACKEND_API_VERSION as-old-as-possible
 ARG TRITON_BACKEND_API_VERSION="r21.05"
 
 RUN mkdir build_in_ci && cd build_in_ci && \
@@ -74,7 +78,8 @@ RUN mkdir build_in_ci && cd build_in_ci && \
       -D CMAKE_INSTALL_PREFIX=/opt/tritonserver                   \
       -D CMAKE_BUILD_TYPE=Debug                                   \
       -D TRITON_BACKEND_API_VERSION=${TRITON_BACKEND_API_VERSION} \
+    -D TRITON_DALI_SKIP_DOWNLOAD=ON \
       .. &&                                                       \
-    make -j"$(grep ^processor /proc/cpuinfo | wc -l)" install
+    make -j"$(grep ^processor /proc/cpuinfo | wc -l)"
 
 WORKDIR /opt/tritonserver

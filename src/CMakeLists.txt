@@ -80,3 +80,6 @@ set(
 
 add_executable(unittests ${DALI_BACKEND_TEST_SRCS})
 target_link_libraries(unittests Catch2::Catch2 dali_executor ${CMAKE_DL_LIBS})
+
+add_executable(repro main.cc)
+target_link_libraries(repro dali_executor ${CMAKE_DL_LIBS})

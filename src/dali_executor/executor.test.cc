@@ -26,6 +26,7 @@
 #include "src/dali_executor/dali_executor.h"
 #include "src/dali_executor/test/test_utils.h"
 #include "src/dali_executor/test_data.h"
+#include "src/model_provider/model_provider.h"
 
 namespace triton { namespace backend { namespace dali { namespace test {
 
@@ -58,14 +59,14 @@ void coalesced_compare(const std::vector<OBufferDescr> &obuffers,
   }
 }
 
-TEST_CASE("Scaling Pipeline") {
-  std::string pipeline_s((const char *)pipelines::scale_pipeline_str,
-                         pipelines::scale_pipeline_len);
-  DaliPipeline pipeline(pipeline_s, 256, 4, 0);
+TEST_CASE("Identity Pipeline") {
+  std::string serialized_pipeline_path="/home/mszolucha/clion_deploy/Triton/dali_backend/qa/L0_identity_cpu/model_repository/dali_identity_cpu/1/model.dali";
+  FileModelProvider mp(serialized_pipeline_path);
+  DaliPipeline pipeline(mp.GetModel(), 256, 4, ::dali::CPU_ONLY_DEVICE_ID);
   DaliExecutor executor(std::move(pipeline));
   std::mt19937 rand(1217);
   std::uniform_real_distribution<float> dist(-1.f, 1.f);
-  const std::string inp_name = "INPUT0";
+  const std::string inp_name = "DALI_INPUT_0";
   auto scaling_test = [&](const std::vector<int> &batch_sizes,
                           const std::vector<int> &out_batch_sizes,
                           const std::vector<device_type_t> &out_devs) {
@@ -82,7 +83,9 @@ TEST_CASE("Scaling Pipeline") {
     }
     std::vector<std::vector<float>> input_buffers;
     auto input = RandomInput(input_buffers, inp_name, shapes, [&]() { return dist(rand); });
+    std::cout<<"DUPA1\n";
     auto output = executor.Run({input});
+    std::cout<<"DUPA2\n";
     REQUIRE(cat_list_shapes(shapes) == output[0].shape);
     size_t inp_size = 0;
     for (auto &inp_buffer : input_buffers)
@@ -112,73 +115,10 @@ TEST_CASE("Scaling Pipeline") {
 
   SECTION("Simple execute") {
     scaling_test({3, 2, 1}, {6}, {CPU});
-    scaling_test({5}, {5}, {GPU});
   }
 
   SECTION("Chunked output") {
     scaling_test({3, 3}, {3, 3}, {CPU, CPU});
-    scaling_test({6}, {2, 4}, {GPU, GPU});
-    scaling_test({8}, {6, 2}, {CPU, GPU});
-    scaling_test({64}, {32, 16, 16}, {CPU, GPU, GPU});
-  }
-}
-
-TEST_CASE("RN50 pipeline") {
-  std::string pipeline_s((const char *)pipelines::rn50_gpu_dali_chr, pipelines::rn50_gpu_dali_len);
-  DaliPipeline pipeline(pipeline_s, 1, 3, 0);
-  DaliExecutor executor(std::move(pipeline));
-  IDescr input;
-  input.meta.name = "DALI_INPUT_0";
-  input.meta.type = dali_data_type_t::DALI_UINT8;
-  input.meta.shape = TensorListShape<1>(1);
-  input.meta.shape.set_tensor_shape(0, TensorShape<>(data::jpeg_image_len));
-  IBufferDescr ibuffer;
-  ibuffer.data = data::jpeg_image_str;
-  ibuffer.size = data::jpeg_image_len;
-  ibuffer.device = device_type_t::CPU;
-  input.buffers = {ibuffer};
-
-  auto execute_with_image = [&]() {
-    const float expected_values[] = {-2.1179, -2.03571, -1.80444};  // 0 values after normalization
-    const int output_c = 3, output_h = 224, output_w = 224;
-    auto output = executor.Run(std::vector<IDescr>({input}));
-    REQUIRE(output[0].shape.tensor_shape(0) == TensorShape<3>(output_c, output_h, output_w));
-    std::vector<float> output_buffer(output[0].shape.num_elements());
-    std::vector<ODescr> output_vec(1);
-    auto &outdesc = output_vec[0];
-    OBufferDescr obuffer;
-    obuffer.device = device_type_t::CPU;
-    obuffer.device_id = 0;
-    obuffer.data = output_buffer.data();
-    obuffer.size = output_buffer.size() * sizeof(decltype(output_buffer)::value_type);
-    outdesc.buffers = {obuffer};
-    executor.PutOutputs(output_vec);
-    for (int c = 0; c < output_c; ++c) {
-      for (int y = 0; y < output_h; ++y) {
-        for (int x = 0; x < output_w; ++x) {
-          REQUIRE(output_buffer[x + (y + c * output_h) * output_w] == Approx(expected_values[c]));
-        }
-      }
-    }
-  };
-
-  SECTION("Simple execute") {
-    execute_with_image();
-  }
-
-  SECTION("Recover from error") {
-    auto rand_inp_shape = TensorListShape<1>(1);
-    rand_inp_shape.set_tensor_shape(0, TensorShape<>(1024));
-    std::vector<std::vector<uint8_t>> rand_input_buffer;
-    std::mt19937 rand(1217);
-    std::uniform_int_distribution<short> dist(0, 255);
-    auto gen = [&]() {
-      return dist(rand);
-    };
-    auto rand_input = RandomInput(rand_input_buffer, input.meta.name, {rand_inp_shape}, gen);
-    REQUIRE_THROWS(executor.Run(std::vector<IDescr>({rand_input})));
-
-    REQUIRE_NOTHROW(execute_with_image());
   }
 }
 
