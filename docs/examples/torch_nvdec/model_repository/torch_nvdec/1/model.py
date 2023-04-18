@@ -26,6 +26,7 @@ import triton_python_backend_utils as pb_utils
 from torchaudio.io import StreamReader
 from torchaudio.utils import ffmpeg_utils
 import time
+import io
 import numpy as np
 import tempfile
 
@@ -74,16 +75,13 @@ class TritonPythonModel:
 
         in_input = pb_utils.get_input_tensor_by_name(requests[0], 'PYTHON_INPUT_0').as_numpy()
 
-        with tempfile.NamedTemporaryFile() as fp:
-            in_input.tofile(fp)
+        s = StreamReader(io.BytesIO(in_input.tobytes()))
+        s.add_video_stream(FRAMES_PER_SEQUENCE, **cuda_conf)
 
-            s = StreamReader(fp.name)
-            s.add_video_stream(FRAMES_PER_SEQUENCE, **cuda_conf)
-
-            for (chunk,) in s.stream():
-                out0_tensor = pb_utils.Tensor.from_dlpack("PYTHON_OUTPUT_0", torch.utils.dlpack.to_dlpack(chunk))
-                response = pb_utils.InferenceResponse(output_tensors=[out0_tensor])
-                response_sender.send(response)
+        for (chunk,) in s.stream():
+            out0_tensor = pb_utils.Tensor.from_dlpack("PYTHON_OUTPUT_0", torch.utils.dlpack.to_dlpack(chunk))
+            response = pb_utils.InferenceResponse(output_tensors=[out0_tensor])
+            response_sender.send(response)
 
         response_sender.send(flags=pb_utils.TRITONSERVER_RESPONSE_COMPLETE_FINAL)
 
