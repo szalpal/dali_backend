@@ -32,7 +32,9 @@
 
 #define TRITON_CALL(expr)     \
   do {                        \
+    TimeRange tr(#expr, TimeRange::kPantyPink); \
     auto err = (expr);        \
+    tr.stop();                \
     if (err) {                \
       throw TritonError(err); \
     }                         \

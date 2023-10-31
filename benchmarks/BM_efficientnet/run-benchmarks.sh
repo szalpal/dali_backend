@@ -21,16 +21,18 @@
 
 : ${MAX_BATCH_SIZE:=${1:-64}}
 
+TESTED_MODEL="preprocessing_gpu"
+
 load_models() {
   echo "Loading models..."
-  python scripts/model-loader.py -u "${GRPC_ADDR}" load -m efficientnet_ensemble_gpu
+  python scripts/model-loader.py -u "${GRPC_ADDR}" load -m $TESTED_MODEL
   sleep 5
   echo "...models loaded"
 }
 
 unload_models() {
   echo "Unloading models..."
-  python scripts/model-loader.py -u "${GRPC_ADDR}" unload -m efficientnet_ensemble_gpu
+  python scripts/model-loader.py -u "${GRPC_ADDR}" unload -m $TESTED_MODEL
   sleep 5
   echo "...models unloaded"
 }
@@ -45,16 +47,16 @@ while [ $POWER_OF_2 -le $MAX_BATCH_SIZE ]; do
 done
 
 # Feel free to assign BATCH_SIZES manually...
-#BATCH_SIZES=(1 2 4 8 16 32 64)
+BATCH_SIZES=(1024)
 
-CONCURRENCY_RANGE=${CONCURRENCY_RANGE:-"16:512:16"}
+CONCURRENCY_RANGE=${CONCURRENCY_RANGE:-"1"}
 GRPC_ADDR=${GRPC_ADDR:-"localhost:8001"}
-TIME_WINDOW=10000
+TIME_WINDOW=60000
 PERF_ANALYZER_ARGS="-i grpc -u $GRPC_ADDR -p$TIME_WINDOW --verbose-csv --collect-metrics"
-INPUT_NAME="INPUT"
-BENCH_DIR="bench-$(date +%Y%m%d_%H%M%S)"
+INPUT_NAME="PREPROCESSING_INPUT_0"
+BENCH_DIR="bench-test"
 
-mkdir -p "$BENCH_DIR/gpu"
+#mkdir -p "$BENCH_DIR/gpu"
 
 echo "Batch size set: $BATCH_SIZES"
 for BS in "${BATCH_SIZES[@]}"; do
@@ -64,7 +66,7 @@ done
 for BS in "${BATCH_SIZES[@]}"; do
   echo "Benchmarking GPU preprocessing. Batch size: $BS"
   load_models
-  perf_analyzer $PERF_ANALYZER_ARGS -m efficientnet_ensemble_gpu --input-data test_sample --shape $INPUT_NAME:$(stat --printf="%s" test_sample/$INPUT_NAME) --concurrency-range=$CONCURRENCY_RANGE -b "$BS" -f "$BENCH_DIR/gpu/report-$BS.csv"
+  perf_analyzer $PERF_ANALYZER_ARGS -m $TESTED_MODEL --input-data test_sample --shape $INPUT_NAME:$(stat --printf="%s" test_sample/$INPUT_NAME) --concurrency-range=$CONCURRENCY_RANGE -b "$BS" -f "$BENCH_DIR/gpu/report-$BS.csv"
   unload_models
 done
 

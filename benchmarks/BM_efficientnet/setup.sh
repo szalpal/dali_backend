@@ -20,4 +20,4 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 mkdir -p test_sample
-cp images/monkey-653705_1920.jpg test_sample/INPUT
+cp images/monkey-653705_1920.jpg test_sample/PREPROCESSING_INPUT_0

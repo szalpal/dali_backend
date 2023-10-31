@@ -25,7 +25,7 @@
 # backend together with tritonserver, start from here
 # -------------------------------------------------- #
 
-ARG TRITON_VERSION=23.03
+ARG TRITON_VERSION=23.09
 ARG BASE_IMAGE=nvcr.io/nvidia/tritonserver:${TRITON_VERSION}-py3
 FROM ${BASE_IMAGE} as builder
 
@@ -87,18 +87,20 @@ ARG DALI_DOWNLOAD_PKG_NAME=nvidia-dali-nightly-cuda110
 ARG DALI_DOWNLOAD_VERSION
 ARG DALI_DOWNLOAD_EXTRA_OPTIONS
 
-RUN pip install --force-reinstall \
-    ${DALI_DOWNLOAD_EXTRA_OPTIONS} --extra-index-url ${DALI_DOWNLOAD_EXTRA_INDEX_URL} \
-    ${DALI_DOWNLOAD_PKG_NAME}${DALI_DOWNLOAD_VERSION:+==${DALI_DOWNLOAD_VERSION}}
+#RUN #pip install --force-reinstall \
+#    ${DALI_DOWNLOAD_EXTRA_OPTIONS} --extra-index-url ${DALI_DOWNLOAD_EXTRA_INDEX_URL} \
+#    ${DALI_DOWNLOAD_PKG_NAME}${DALI_DOWNLOAD_VERSION:+==${DALI_DOWNLOAD_VERSION}}
 
 COPY . .
+
+RUN pip install nvidia_dali_cuda120-1.32.0.dev0-py3-none-any.whl
 
 ARG TRITON_BACKEND_API_VERSION="r22.07"
 
 RUN mkdir build_in_ci && cd build_in_ci && \
     cmake                                                         \
       -D CMAKE_INSTALL_PREFIX=/opt/tritonserver                   \
-      -D CMAKE_BUILD_TYPE=Debug                                   \
+      -D CMAKE_BUILD_TYPE=Release                                   \
       -D TRITON_BACKEND_API_VERSION=${TRITON_BACKEND_API_VERSION} \
       -D TRITON_DALI_SKIP_DOWNLOAD=ON                             \
       .. &&                                                       \

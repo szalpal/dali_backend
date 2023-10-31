@@ -21,33 +21,33 @@
 
 set -e
 
-mkdir -p model_repository/efficientnet_ensemble_gpu/1
-mkdir -p model_repository/efficientnet_ensemble_cpu/1
-
-if [[ ! -d DeepLearningExamples ]]; then  # assume that DLE has been properly cloned and patched before
-  git clone https://github.com/NVIDIA/DeepLearningExamples.git
-  pushd DeepLearningExamples || exit 1
-  git checkout 36041957
-  git am ../0001-Update-requirements-and-add-Dockerfile.bench.patch
-  popd || exit 1
-fi
-
-pushd DeepLearningExamples/PyTorch/Classification/ConvNets || exit 1
-cp ../../../../deploy_on_triton.py .
-popd || exit 1
-
-pushd DeepLearningExamples || exit 1
-
-RANDOM_STRING=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 13 ; echo '')
-echo "Random container name: $RANDOM_STRING"
-
-docker build -t convnets -f Dockerfile.bench .
-docker run --shm-size 8g --gpus all --name $RANDOM_STRING convnets python deploy_on_triton.py --model-name efficientnet-b0 --model-repository /model_repository --batch-size "$1"
-
-popd || exit 1
-
-docker cp $RANDOM_STRING:/model_repository ./
-docker rm $RANDOM_STRING
+#mkdir -p model_repository/efficientnet_ensemble_gpu/1
+#mkdir -p model_repository/efficientnet_ensemble_cpu/1
+#
+#if [[ ! -d DeepLearningExamples ]]; then  # assume that DLE has been properly cloned and patched before
+#  git clone https://github.com/NVIDIA/DeepLearningExamples.git
+#  pushd DeepLearningExamples || exit 1
+#  git checkout 36041957
+#  git am ../0001-Update-requirements-and-add-Dockerfile.bench.patch
+#  popd || exit 1
+#fi
+#
+#pushd DeepLearningExamples/PyTorch/Classification/ConvNets || exit 1
+#cp ../../../../deploy_on_triton.py .
+#popd || exit 1
+#
+#pushd DeepLearningExamples || exit 1
+#
+#RANDOM_STRING=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 13 ; echo '')
+#echo "Random container name: $RANDOM_STRING"
+#
+#docker build -t convnets -f Dockerfile.bench .
+#docker run --shm-size 8g --gpus all --name $RANDOM_STRING convnets python deploy_on_triton.py --model-name efficientnet-b0 --model-repository /model_repository --batch-size "$1"
+#
+#popd || exit 1
+#
+#docker cp $RANDOM_STRING:/model_repository ./
+#docker rm $RANDOM_STRING
 
 # Set max_batch_size in the remaining models
 insert_batch_size () {
