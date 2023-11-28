@@ -24,10 +24,9 @@ import nvidia.dali.types as types
 from nvidia.dali.plugin.triton import autoserialize
 
 
-@autoserialize
-@dali.pipeline_def(batch_size=512, num_threads=1, device_id=0)
-def pipe(hw_decoder_load=0.8):
-    images = dali.fn.external_source(device="cpu", name="PREPROCESSING_INPUT_0")
+@dali.pipeline_def(batch_size=1024, num_threads=1, device_id=0)
+def pipe(hw_decoder_load=1):
+    images = dali.fn.external_source(device="cpu", name="PREPROCESSING_INPUT_0", no_copy=True)
     images = dali.fn.decoders.image(images, device="mixed", output_type=types.RGB, hw_decoder_load=hw_decoder_load)
     images = dali.fn.resize(images, resize_x=224, resize_y=224)
     images = dali.fn.crop_mirror_normalize(images,
@@ -37,3 +36,7 @@ def pipe(hw_decoder_load=0.8):
                                            mean=[0.485 * 255, 0.456 * 255, 0.406 * 255],
                                            std=[0.229 * 255, 0.224 * 255, 0.225 * 255])
     return images
+
+p=pipe()
+p.build()
+p.serialize(filename='model.dali')
